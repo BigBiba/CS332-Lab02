@@ -8,3 +8,4 @@ venv/
 *.png
 bin/
 .env
+__pycache__/
