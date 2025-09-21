@@ -1,8 +1,10 @@
 import enum
 import tkinter as tk
+import matplotlib.pyplot as plt
 
 from tkinter import ttk
 from PIL import Image, ImageTk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
 class Channel(enum.Enum):
@@ -21,13 +23,13 @@ class TkinterApp:
 
         self.selected_opt = tk.StringVar()
 
-        self.channel_list = tk.ttk.Combobox(self.root, textvariable=self.selected_opt,
-                                            values=list(x.value for x in Channel))
+        self.channel_list = ttk.Combobox(self.root, textvariable=self.selected_opt,
+                                         values=list(x.value for x in Channel))
         self.channel_list.set(Channel.BASE.value)
         self.channel_list.config(state="readonly")
         self.channel_list.pack(side=tk.TOP, pady=4, anchor=tk.W)
 
-        self.button_apply = tk.Button(self.root, text="Применить", command=self.__update_image__)
+        self.button_apply = tk.Button(self.root, text="Применить", command=self._update_image)
         self.button_apply.pack(side=tk.TOP, anchor=tk.W)
 
         self.checkbox_value = tk.BooleanVar()
@@ -37,7 +39,11 @@ class TkinterApp:
         self.image = tk.Label(self.root, image=None)
         self.image.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
-    def __update_image__(self) -> None:
+        self.hist_window: tk.Toplevel = None
+
+    def _update_image(self) -> None:
+        if self.hist_window is not None:
+            self.hist_window.destroy()
         path = self.entry_path.get()
         channel_str = self.selected_opt.get()
         try:
@@ -46,8 +52,9 @@ class TkinterApp:
             print(f"Ошибка: {e}")
             return
         try:
-            self.photo = self.change_channel(path, channel_enum)
+            self.photo = self._change_channel(path, channel_enum)
             self.image.config(image=self.photo)
+            self._draw_histograms(path)
         except Exception as e:
             print(f"Ошибка: {e}")
 
@@ -70,7 +77,7 @@ class TkinterApp:
                         pixels[x, y] = (0, 0, b)
             return ImageTk.PhotoImage(img)
 
-    def change_channel(self, filename: str, channel: Channel) -> ImageTk.PhotoImage:
+    def _change_channel(self, filename: str, channel: Channel) -> ImageTk.PhotoImage:
         with Image.open(filename).convert("RGB") as img:
             width, height = img.size
 
@@ -94,6 +101,25 @@ class TkinterApp:
                 if not flag:
                     return ImageTk.PhotoImage(Image.merge("RGB", (empty_channel, empty_channel, b_channel)))
                 return ImageTk.PhotoImage(b_channel)
+
+    def _draw_histograms(self, filename: str) -> None:
+        with Image.open(filename).convert("RGB") as img:
+            self.hist_window = tk.Toplevel(self.root)
+            self.hist_window.title("Гистограммы")
+            r, g, b = img.split()
+            fig, axs = plt.subplots(3, 1, figsize=(6, 4))
+
+            axs[0].hist(list(r.getdata()), bins=256, alpha=0.5, color='red', label='Красный')
+            axs[1].hist(list(g.getdata()), bins=256, alpha=0.5, color='green', label='Зеленый')
+            axs[2].hist(list(b.getdata()), bins=256, alpha=0.5, color='blue', label='Синий')
+
+            for ax in axs:
+                ax.set_ylabel('Количество')
+                ax.set_xlabel('Значение пикселя')
+
+            canvas = FigureCanvasTkAgg(fig, master=self.hist_window)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     def run(self) -> None:
         self.root.mainloop()
