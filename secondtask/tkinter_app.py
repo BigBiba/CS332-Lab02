@@ -1,12 +1,8 @@
-import os
 import enum
 import tkinter as tk
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 from tkinter import ttk
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageTk
 
 
 class Channel(enum.Enum):
@@ -34,10 +30,14 @@ class TkinterApp:
         self.button_apply = tk.Button(self.root, text="Применить", command=self.__update_image__)
         self.button_apply.pack(side=tk.TOP, anchor=tk.W)
 
+        self.checkbox_value = tk.BooleanVar()
+        self.is_greyscale_checkbox = tk.Checkbutton(text="В серых тонах?", variable=self.checkbox_value)
+        self.is_greyscale_checkbox.pack(side=tk.TOP, anchor=tk.W)
+
         self.image = tk.Label(self.root, image=None)
         self.image.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
-    def __update_image__(self):
+    def __update_image__(self) -> None:
         path = self.entry_path.get()
         channel_str = self.selected_opt.get()
         try:
@@ -52,8 +52,8 @@ class TkinterApp:
             print(f"Ошибка: {e}")
 
     @staticmethod
-    def change_channel(filename: str, channel: Channel) -> ImageTk.PhotoImage:
-        with Image.open(filename) as img:
+    def change_color(filename: str, channel: Channel) -> ImageTk.PhotoImage:
+        with Image.open(filename).convert("RGB") as img:
             width, height = img.size
             pixels = img.load()
             if channel == Channel.BASE:
@@ -70,7 +70,32 @@ class TkinterApp:
                         pixels[x, y] = (0, 0, b)
             return ImageTk.PhotoImage(img)
 
-    def run(self):
+    def change_channel(self, filename: str, channel: Channel) -> ImageTk.PhotoImage:
+        with Image.open(filename).convert("RGB") as img:
+            width, height = img.size
+
+            if channel == Channel.BASE:
+                return ImageTk.PhotoImage(img)
+            r_channel, g_channel, b_channel = img.split()
+
+            flag = self.checkbox_value.get()
+
+            if not flag:
+                empty_channel = Image.new("L", (width, height), 0)
+            if channel == Channel.RED:
+                if not flag:
+                    return ImageTk.PhotoImage(Image.merge("RGB", (r_channel, empty_channel, empty_channel)))
+                return ImageTk.PhotoImage(r_channel)
+            elif channel == Channel.GREEN:
+                if not flag:
+                    return ImageTk.PhotoImage(Image.merge("RGB", (empty_channel, g_channel, empty_channel)))
+                return ImageTk.PhotoImage(g_channel)
+            elif channel == Channel.BLUE:
+                if not flag:
+                    return ImageTk.PhotoImage(Image.merge("RGB", (empty_channel, empty_channel, b_channel)))
+                return ImageTk.PhotoImage(b_channel)
+
+    def run(self) -> None:
         self.root.mainloop()
 
 
