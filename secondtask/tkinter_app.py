@@ -41,10 +41,12 @@ class TkinterApp:
 
         self.hist_window: tk.Toplevel = None
 
+        self.prev_path: str = ""
+
     def _update_image(self) -> None:
-        if self.hist_window is not None:
-            self.hist_window.destroy()
         path = self.entry_path.get()
+        if self.hist_window is not None and path != self.prev_path:
+            self.hist_window.destroy()
         channel_str = self.selected_opt.get()
         try:
             channel_enum = Channel(channel_str)
@@ -54,7 +56,9 @@ class TkinterApp:
         try:
             self.photo = self._change_channel(path, channel_enum)
             self.image.config(image=self.photo)
-            self._draw_histograms(path)
+            if self.prev_path != path:
+                self._draw_histograms(path)
+            self.prev_path = path
         except Exception as e:
             print(f"Ошибка: {e}")
 
